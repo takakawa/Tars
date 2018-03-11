@@ -35,7 +35,7 @@ namespace tars
  * 该类将TC_ThreadMutex/TC_ThreadRecMutex 与TC_ThreadCond结合起来； 
  */
 template <class T, class P>
-class TC_Monitor
+class TC_Monitor              // 把cond和mutex封装在一起的结合体
 {
 public:
 
@@ -73,7 +73,8 @@ public:
      */
     void unlock() const
     {
-        notifyImpl(_nnotify);
+        notifyImpl(_nnotify);// 在notify的时候并没有实际通知，而只是修改了计数，因为使用通知，必须加锁，所以它把真正的通知动作放在了解锁的时候进行
+                            // 注意这里是值传递,_nnotify的值并没有改变，_nnotify在thread_queue这个例子中为que的元素的个数
         _mutex.unlock();
     }
 
@@ -97,11 +98,11 @@ public:
      */
     void wait() const
     {
-        notifyImpl(_nnotify);
+        notifyImpl(_nnotify); // 没看懂，这是做什么？，当一个线程能走到wait函数，已经表明queue是空的，_nnotify一定是0
 
         try
         {
-            _cond.wait(_mutex);
+            _cond.wait(_mutex);// 醒来第一件事还是获取mutex
         }
         catch(...)
         {
@@ -175,14 +176,14 @@ protected:
     {
         if(nnotify != 0)
         {
-            if(nnotify == -1)
+            if(nnotify == -1) //注意 nnotify 不是_nnotify
             {
                 _cond.broadcast();
                 return;
             }
             else
             {
-                while(nnotify > 0)
+                while(nnotify > 0) //注意 nnotify 不是_nnotify
                 {
                     _cond.signal();
                     --nnotify;

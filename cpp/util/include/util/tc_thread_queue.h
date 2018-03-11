@@ -134,9 +134,9 @@ protected:
 
 template<typename T, typename D> bool TC_ThreadQueue<T, D>::pop_front(T& t, size_t millsecond)
 {
-    Lock lock(*this);
+    Lock lock(*this);    // 两个线程同时pop_front的时候，一个获得锁之后，会在wait里（pthread_cond的机制，它会把线程入等待队列后，释放mutex，故第二个线程也会获得此锁
 
-    if (_queue.empty())
+    if (_queue.empty())  // 可以写成while(_queue.empt())，这样就不用有下边的if了，对于一个你等待的资源，当你醒来时，它一定ok？no,no
     {
         if(millsecond == 0)
         {
@@ -144,12 +144,12 @@ template<typename T, typename D> bool TC_ThreadQueue<T, D>::pop_front(T& t, size
         }
         if(millsecond == (size_t)-1)
         {
-            wait();
+            wait();   // TC_Monitor里实现,线程从这里醒来第一件事也是获取mutex，这是pthread_cond的机制
         }
         else
         {
             //超时了
-            if(!timedWait(millsecond))
+            if(!timedWait(millsecond))   // TC_Monitor里实现
             {
                 return false;
             }
@@ -178,9 +178,9 @@ template<typename T, typename D> void TC_ThreadQueue<T, D>::notifyT()
 
 template<typename T, typename D> void TC_ThreadQueue<T, D>::push_back(const T& t)
 {
-    Lock lock(*this);
+    Lock lock(*this);  // Lock类初始的时候执行加锁
 
-    notify();
+    notify();           // 进行notify计数修改，但是它不做实际动作，实际动作在lock本函数销毁，析构时执行，但是它不修改_notify计算，它是通过值传递
 
     _queue.push_back(t);
     ++_size;
@@ -232,7 +232,7 @@ template<typename T, typename D> bool TC_ThreadQueue<T, D>::swap(queue_type &q, 
 {
     Lock lock(*this);
 
-    if (_queue.empty())
+    if (_queue.empty()) // 可以写成while(_queue.empt())，这样就不用有下边的if了，对于一个你等待的资源，当你醒来时，它一定ok？no,no
     {
         if(millsecond == 0)
         {
@@ -240,12 +240,12 @@ template<typename T, typename D> bool TC_ThreadQueue<T, D>::swap(queue_type &q, 
         }
         if(millsecond == (size_t)-1)
         {
-            wait();
+            wait();  // TC_Monitor里实现,wait第一步就是notifyall
         }
         else
         {
             //超时了
-            if(!timedWait(millsecond))
+            if(!timedWait(millsecond))  // TC_Monitor里实现
             {
                 return false;
             }
